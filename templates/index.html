@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="ko">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>MaziSpace - 스페이스 러너</title>
+    <link rel="stylesheet" href="{{ url_for('static', path='styles.css') }}" />
+  </head>
+  <body>
+    <header class="header">
+      <h1 class="logo">🚀 MaziSpace</h1>
+      <p class="tagline">별을 수집하고 우주 쓰레기를 피하세요!</p>
+    </header>
+
+    <main class="layout">
+      <section class="game-panel">
+        <canvas id="gameCanvas" width="420" height="640" aria-label="게임 캔버스"></canvas>
+        <div class="hud">
+          <div class="hud-item">점수: <span id="score">0</span></div>
+          <div class="hud-item">최고 점수: <span id="bestScore">0</span></div>
+          <button id="restartButton" class="primary">다시 시작</button>
+        </div>
+      </section>
+
+      <section class="sidebar">
+        <article class="card">
+          <h2>조작법</h2>
+          <ul>
+            <li>◀︎ ▶︎ 키로 우주선을 이동합니다.</li>
+            <li>별을 수집하면 점수가 증가합니다.</li>
+            <li>운석에 부딪히면 게임이 종료됩니다.</li>
+          </ul>
+        </article>
+
+        <article class="card">
+          <h2>리더보드</h2>
+          <ol id="leaderboard" class="leaderboard"></ol>
+        </article>
+
+        <article class="card">
+          <h2>점수 제출</h2>
+          <form id="scoreForm" class="score-form">
+            <label for="playerName">파일럿 이름</label>
+            <input id="playerName" name="playerName" maxlength="32" placeholder="별빛 파일럿" required />
+            <button type="submit" class="primary">기록하기</button>
+          </form>
+          <p class="form-hint">게임 종료 후 점수를 제출할 수 있습니다.</p>
+        </article>
+      </section>
+    </main>
+
+    <template id="leaderboard-item">
+      <li>
+        <span class="rank"></span>
+        <span class="name"></span>
+        <span class="score"></span>
+      </li>
+    </template>
+
+    <dialog id="gameOverDialog" class="dialog">
+      <form method="dialog" class="dialog-content">
+        <h2>게임 종료</h2>
+        <p>좋은 비행이었습니다! 점수를 제출하고 랭킹에 도전하세요.</p>
+        <div class="dialog-actions">
+          <button value="close" class="primary">확인</button>
+        </div>
+      </form>
+    </dialog>
+
+    <script type="module" src="{{ url_for('static', path='game.js') }}"></script>
+  </body>
+</html>
