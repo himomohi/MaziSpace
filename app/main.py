@@ -1,16 +1,15 @@
-"""FastAPI 기반 모던 웹 게임 애플리케이션."""
+"""FastAPI 스타일 인터페이스를 갖춘 경량 웹 애플리케이션."""
 
 from __future__ import annotations
 
 from pathlib import Path
-from typing import List
+from typing import Iterable
 
 from fastapi import FastAPI, HTTPException, Request, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
-from pydantic import BaseModel, Field
 
 from .game import Leaderboard, leaderboard
 
@@ -19,8 +18,31 @@ TEMPLATE_DIR = BASE_DIR / "templates"
 STATIC_DIR = BASE_DIR / "static"
 
 
+def _serialize_entries(entries: Iterable) -> list[dict[str, int | str]]:
+    return [
+        {"player_name": item.player_name, "score": item.score}
+        for item in entries
+    ]
+
+
+def _validate_payload(payload: object) -> tuple[str, int]:
+    if not isinstance(payload, dict):
+        raise ValueError("요청 본문은 JSON 객체여야 합니다.")
+
+    name = payload.get("player_name")
+    score = payload.get("score")
+
+    if not isinstance(name, str) or not name.strip():
+        raise ValueError("플레이어 이름은 공백이 아닌 문자열이어야 합니다.")
+
+    if not isinstance(score, int):
+        raise ValueError("점수는 정수여야 합니다.")
+
+    return name, score
+
+
 def create_app(board: Leaderboard | None = None) -> FastAPI:
-    """FastAPI 애플리케이션을 생성한다."""
+    """FastAPI 호환 애플리케이션을 생성한다."""
 
     app = FastAPI(title="MaziSpace", description="스페이스 러너 웹 게임", version="0.1.0")
 
@@ -38,35 +60,24 @@ def create_app(board: Leaderboard | None = None) -> FastAPI:
     templates = Jinja2Templates(directory=str(TEMPLATE_DIR))
     board = board or leaderboard
 
-    class ScorePayload(BaseModel):
-        player_name: str = Field(..., max_length=32, examples=["NovaPilot"])
-        score: int = Field(..., ge=0, examples=[1280])
-
-    class ScoreResponse(BaseModel):
-        player_name: str
-        score: int
-
     @app.get("/", response_class=HTMLResponse)
     async def index(request: Request) -> HTMLResponse:
         return templates.TemplateResponse("index.html", {"request": request})
 
-    @app.get("/api/leaderboard", response_model=List[ScoreResponse])
-    async def read_leaderboard() -> List[ScoreResponse]:
+    @app.get("/api/leaderboard")
+    async def read_leaderboard() -> list[dict[str, int | str]]:
         entries = await board.entries()
-        return [ScoreResponse(player_name=item.player_name, score=item.score) for item in entries]
+        return _serialize_entries(entries)
 
-    @app.post(
-        "/api/leaderboard",
-        response_model=List[ScoreResponse],
-        status_code=status.HTTP_201_CREATED,
-    )
-    async def submit_score(payload: ScorePayload) -> List[ScoreResponse]:
+    @app.post("/api/leaderboard", status_code=status.HTTP_201_CREATED)
+    async def submit_score(payload: dict[str, object] | None = None) -> list[dict[str, int | str]]:
         try:
-            entries = await board.submit(player_name=payload.player_name, score=payload.score)
+            player_name, score = _validate_payload(payload or {})
+            entries = await board.submit(player_name=player_name, score=score)
         except ValueError as exc:  # pragma: no cover - 방어적 예외 처리
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
 
-        return [ScoreResponse(player_name=item.player_name, score=item.score) for item in entries]
+        return _serialize_entries(entries)
 
     return app
 
